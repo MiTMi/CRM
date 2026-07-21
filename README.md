@@ -47,6 +47,13 @@ npm run build    # production build
   delete notes — all persisted.
 - **Technicians** — team cards with specialties and workload; admins can add
   technicians (new members can sign in with the demo password).
+- **Calendar** — a month grid placing every ticket on its SLA due date
+  (overdue highlighted, resolved struck through), with month navigation.
+- **Knowledge** — a team knowledge base of notes/ideas with document & image
+  attachments. Any technician/admin can add; the author or an admin can edit or
+  delete. Deletes are soft; **every edit and delete snapshots the prior state**,
+  and admins get a version-history view plus an archive of deleted notes they
+  can restore.
 - **Command palette** (⌘K), a notification bell showing live recent activity,
   collapsible sidebar, full dark mode, per-route loading skeletons, empty states.
 

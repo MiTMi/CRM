@@ -115,6 +115,47 @@ export interface Attachment {
   createdAt: string; // ISO
 }
 
+// -- Knowledge base --------------------------------------------------------
+
+export interface KnowledgeNote {
+  id: string;
+  title: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  deletedBy: string | null;
+}
+
+/** Enriched note for list/detail rendering. */
+export interface KnowledgeNoteWithMeta extends KnowledgeNote {
+  authorName: string;
+  authorAccent: string;
+  attachmentCount: number;
+}
+
+export interface KnowledgeNoteVersion {
+  id: string;
+  noteId: string;
+  title: string;
+  body: string;
+  action: "edited" | "deleted";
+  editorId: string;
+  editorName: string;
+  createdAt: string;
+}
+
+export interface KnowledgeAttachment {
+  id: string;
+  noteId: string;
+  filename: string;
+  mime: string;
+  size: number;
+  uploaderId: string;
+  createdAt: string;
+}
+
 /** An Activity enriched with the display fields the feed/notifications need. */
 export interface ActivityFeedItem {
   id: string;

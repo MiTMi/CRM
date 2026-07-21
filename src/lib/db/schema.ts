@@ -92,7 +92,43 @@ CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
 CREATE INDEX IF NOT EXISTS idx_tickets_customer ON tickets(customer_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_assignee ON tickets(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_comments_ticket ON ticket_comments(ticket_id);
+CREATE TABLE IF NOT EXISTS knowledge_notes (
+  id          TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  body        TEXT NOT NULL,
+  author_id   TEXT NOT NULL REFERENCES technicians(id),
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  deleted_at  TEXT,
+  deleted_by  TEXT
+);
+
+-- Snapshot of a note's prior state, taken on every edit and on delete, so an
+-- admin can audit what changed after a technician edits or removes a note.
+CREATE TABLE IF NOT EXISTS knowledge_note_versions (
+  id         TEXT PRIMARY KEY,
+  note_id    TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT NOT NULL,
+  action     TEXT NOT NULL,
+  editor_id  TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS knowledge_attachments (
+  id          TEXT PRIMARY KEY,
+  note_id     TEXT NOT NULL REFERENCES knowledge_notes(id),
+  filename    TEXT NOT NULL,
+  mime        TEXT NOT NULL,
+  size        INTEGER NOT NULL,
+  path        TEXT NOT NULL,
+  uploader_id TEXT NOT NULL,
+  created_at  TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_notes_customer ON notes(customer_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_ticket ON attachments(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_kn_versions_note ON knowledge_note_versions(note_id);
+CREATE INDEX IF NOT EXISTS idx_kn_attachments_note ON knowledge_attachments(note_id);
 CREATE INDEX IF NOT EXISTS idx_activities_created ON activities(created_at);
 `;
