@@ -1,8 +1,9 @@
 # Helpdesk CRM
 
-A modern web CRM with an IT support ticketing system. Built design-first:
-a polished, responsive UI running on realistic mock data, structured so a real
-backend can be added without touching the pages.
+A modern web CRM with an IT support ticketing system — ticketing with SLAs and
+attachments, customer management, role-based auth, and a PostgreSQL backend.
+
+![Helpdesk CRM dashboard](public/preview.png)
 
 ## Stack
 
