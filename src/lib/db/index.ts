@@ -8,6 +8,7 @@ import {
   comments,
   contacts,
   customers,
+  knowledgeNotes,
   notes,
   savedViews,
   tags,
@@ -63,7 +64,30 @@ async function initialize(): Promise<DbClient> {
   const client = await createClient();
   await client.exec(SCHEMA);
   await seedIfEmpty(client);
+  await seedKnowledgeNotes(client);
   return client;
+}
+
+// Idempotently ensure the starter knowledge notes exist. Unlike seedIfEmpty
+// (a one-shot gated on an empty tickets table), this runs every startup and
+// inserts each seed note only when its fixed id is absent — so the knowledge
+// base is always populated and persistent, existing notes are never touched,
+// and a soft-deleted or edited seed note is left as the user left it.
+async function seedKnowledgeNotes(client: DbClient) {
+  for (const n of knowledgeNotes) {
+    const existing = await client.query(
+      toPg("SELECT 1 FROM knowledge_notes WHERE id = ?"),
+      [n.id],
+    );
+    if (existing.rows.length > 0) continue;
+    await client.query(
+      toPg(
+        `INSERT INTO knowledge_notes (id,title,body,author_id,created_at,updated_at)
+         VALUES (?,?,?,?,?,?)`,
+      ),
+      [n.id, n.title, n.body, n.authorId, n.createdAt, n.updatedAt],
+    );
+  }
 }
 
 async function seedIfEmpty(client: DbClient) {

@@ -594,10 +594,11 @@ export async function searchWorkspace(
   limit = 6,
 ): Promise<WorkspaceSearchResults> {
   const term = q.trim();
-  if (!term) return { tickets: [], customers: [], technicians: [] };
+  if (!term)
+    return { tickets: [], customers: [], technicians: [], knowledge: [] };
   const like = `%${term}%`;
 
-  const [tRows, cRows, teRows] = await Promise.all([
+  const [tRows, cRows, teRows, kRows] = await Promise.all([
     query(
       `SELECT t.id AS id, t.number AS number, t.title AS title, c.name AS customer
        FROM tickets t JOIN customers c ON c.id = t.customer_id
@@ -613,6 +614,13 @@ export async function searchWorkspace(
     query(
       `SELECT id, name, title FROM technicians
        WHERE name ILIKE ? OR title ILIKE ? ORDER BY name LIMIT ?`,
+      [like, like, limit],
+    ),
+    // Knowledge base: title or body, excluding soft-deleted notes.
+    query(
+      `SELECT id, title, body FROM knowledge_notes
+       WHERE deleted_at IS NULL AND (title ILIKE ? OR body ILIKE ?)
+       ORDER BY updated_at DESC LIMIT ?`,
       [like, like, limit],
     ),
   ]);
@@ -634,7 +642,22 @@ export async function searchWorkspace(
       name: r.name as string,
       title: r.title as string,
     })),
+    knowledge: kRows.map((r) => ({
+      id: r.id as string,
+      title: r.title as string,
+      snippet: snippetFor(r.body as string, term),
+    })),
   };
+}
+
+/** A short body excerpt centered on the match, for the search dropdown. */
+function snippetFor(body: string, term: string): string {
+  const text = body.replace(/\s+/g, " ").trim();
+  const at = text.toLowerCase().indexOf(term.toLowerCase());
+  if (at < 0) return text.slice(0, 80) + (text.length > 80 ? "…" : "");
+  const start = Math.max(0, at - 30);
+  const slice = text.slice(start, start + 90);
+  return (start > 0 ? "…" : "") + slice + (start + 90 < text.length ? "…" : "");
 }
 
 // -- Activity --------------------------------------------------------------

@@ -313,4 +313,5 @@ export interface WorkspaceSearchResults {
   tickets: { id: string; number: number; title: string; customer: string }[];
   customers: { id: string; name: string; industry: string }[];
   technicians: { id: string; name: string; title: string }[];
+  knowledge: { id: string; title: string; snippet: string }[];
 }

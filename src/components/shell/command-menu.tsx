@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
+  BookOpen,
   Building2,
   LayoutDashboard,
   Loader2,
@@ -34,6 +35,7 @@ const EMPTY: WorkspaceSearchResults = {
   tickets: [],
   customers: [],
   technicians: [],
+  knowledge: [],
 };
 
 export function CommandMenu() {
@@ -94,7 +96,8 @@ export function CommandMenu() {
   const hasResults =
     results.tickets.length +
       results.customers.length +
-      results.technicians.length >
+      results.technicians.length +
+      results.knowledge.length >
     0;
 
   return (
@@ -117,11 +120,11 @@ export function CommandMenu() {
           if (!v) setQuery("");
         }}
         title="Search"
-        description="Search tickets, customers and technicians"
+        description="Search tickets, customers, technicians and knowledge"
         shouldFilter={false}
       >
         <CommandInput
-          placeholder="Search tickets, customers, technicians…"
+          placeholder="Search tickets, customers, technicians, knowledge…"
           value={query}
           onValueChange={setQuery}
         />
@@ -206,6 +209,29 @@ export function CommandMenu() {
                     <span className="ml-auto text-xs text-muted-foreground">
                       {t.title}
                     </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
+
+          {results.knowledge.length > 0 && (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="Knowledge">
+                {results.knowledge.map((k) => (
+                  <CommandItem
+                    key={k.id}
+                    value={`knowledge-${k.id}`}
+                    onSelect={() => go(`/knowledge/${k.id}`)}
+                  >
+                    <BookOpen />
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate">{k.title}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {k.snippet}
+                      </span>
+                    </div>
                   </CommandItem>
                 ))}
               </CommandGroup>

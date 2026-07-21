@@ -8,6 +8,7 @@ const EMPTY: WorkspaceSearchResults = {
   tickets: [],
   customers: [],
   technicians: [],
+  knowledge: [],
 };
 
 /** Server-side workspace search for the command palette. */

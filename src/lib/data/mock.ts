@@ -410,3 +410,66 @@ export const savedViews = [
     createdAt: iso(20 * DAY),
   },
 ];
+
+// -- Knowledge base (starter runbooks) -------------------------------------
+// Seeded with fixed ids so they're inserted once and then persist — they are
+// idempotently backfilled on startup (see seedKnowledgeNotes in db/index.ts),
+// never wiped by a reseed, and skipped if edited or soft-deleted.
+
+export const knowledgeNotes: {
+  id: string;
+  title: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
+  updatedAt: string;
+}[] = [
+  {
+    id: "kn-seed-vpn",
+    title: "VPN won't connect after password reset",
+    body: "When a user resets their domain password, the cached VPN credential goes stale and the client fails with error 809/691. Fix: open the VPN client, forget the saved profile, and re-authenticate with the new password. If it still fails, confirm the account isn't locked in AD and that MFA was re-enrolled. Escalate to Networking if the gateway rejects a known-good credential.",
+    authorId: "tech-1",
+    createdAt: iso(40 * DAY),
+    updatedAt: iso(6 * DAY),
+  },
+  {
+    id: "kn-seed-printer",
+    title: "Shared printer offline / stuck queue",
+    body: "Symptoms: jobs pile up and the printer shows offline for everyone. Fix: on the print server, restart the Print Spooler service, clear C:\\\\Windows\\\\System32\\\\spool\\\\PRINTERS, then power-cycle the device. For the copy-room HP LaserJet, assign a static IP so DHCP renewals don't drop the port. Tag hardware faults with Hardware RMA.",
+    authorId: "tech-2",
+    createdAt: iso(33 * DAY),
+    updatedAt: iso(33 * DAY),
+  },
+  {
+    id: "kn-seed-onboarding",
+    title: "New hire account provisioning checklist",
+    body: "1) Create the AD account and add to the correct department group. 2) Assign an M365 license and mailbox. 3) Provision SSO apps (Slack, Jira, the CRM). 4) Enroll MFA. 5) Order hardware and image the laptop. 6) Grant VPN access. Aim to finish provisioning the business day before the start date so first-day tickets don't spike.",
+    authorId: "tech-3",
+    createdAt: iso(28 * DAY),
+    updatedAt: iso(9 * DAY),
+  },
+  {
+    id: "kn-seed-mfa",
+    title: "Resetting MFA for a lost or replaced phone",
+    body: "If a user loses their phone or gets a new device, their MFA enrollment must be reset before they can sign in. Verify identity out-of-band (manager confirmation or a known security question), then remove the old authenticator method in the admin console and have the user re-enroll from the sign-in prompt. Never read one-time codes to a user over chat or phone.",
+    authorId: "tech-1",
+    createdAt: iso(21 * DAY),
+    updatedAt: iso(21 * DAY),
+  },
+  {
+    id: "kn-seed-email-spam",
+    title: "Legitimate email flagged as spam",
+    body: "When a trusted sender lands in quarantine, check the message headers for SPF/DKIM/DMARC failures before allow-listing. If the sender's domain fails DMARC, the right fix is on their side — don't blanket-allow the domain. For one-off releases, release from quarantine and add the specific sender, not the whole domain, to the allow list.",
+    authorId: "tech-4",
+    createdAt: iso(14 * DAY),
+    updatedAt: iso(5 * DAY),
+  },
+  {
+    id: "kn-seed-slow-laptop",
+    title: "Triage: 'my laptop is slow'",
+    body: "Quick triage before reimaging: check disk free space (<10% tanks performance), review Task Manager for a runaway process, confirm pending Windows updates aren't installing, and run a malware scan. Roaming-profile users with huge desktops see slow logons — redirect folders to OneDrive. Only reimage as a last resort after backing up the user's data.",
+    authorId: "tech-2",
+    createdAt: iso(8 * DAY),
+    updatedAt: iso(8 * DAY),
+  },
+];
