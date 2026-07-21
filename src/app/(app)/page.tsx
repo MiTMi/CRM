@@ -29,6 +29,7 @@ import {
   getActivityFeed,
   getDashboardStats,
   getOverdueCount,
+  getSlaPolicy,
   getStatusDistribution,
   getTechnicianWorkload,
   getTicketVolume,
@@ -39,7 +40,7 @@ import { formatHours, formatNumber } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [stats, volume, distribution, workload, allTickets, overdueCount, feed] =
+  const [stats, volume, distribution, workload, allTickets, overdueCount, feed, slaPolicy] =
     await Promise.all([
       getDashboardStats(),
       getTicketVolume(30),
@@ -48,6 +49,7 @@ export default async function DashboardPage() {
       getTickets(),
       getOverdueCount(),
       getActivityFeed(7),
+      getSlaPolicy(),
     ]);
   const queue = allTickets
     .filter((t) => ["open", "in_progress", "waiting_on_customer"].includes(t.status))
@@ -157,7 +159,7 @@ export default async function DashboardPage() {
             {queue.length > 0 ? (
               <div className="divide-y">
                 {queue.map((t) => (
-                  <TicketQueueItem key={t.id} ticket={t} />
+                  <TicketQueueItem key={t.id} ticket={t} slaHours={slaPolicy} />
                 ))}
               </div>
             ) : (

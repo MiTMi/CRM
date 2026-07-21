@@ -11,6 +11,8 @@ import {
   StickyNote,
   Flag,
   Paperclip,
+  Tag as TagIcon,
+  TagsIcon,
   type LucideIcon,
 } from "lucide-react";
 import { relativeTime } from "@/lib/format";
@@ -62,6 +64,14 @@ const ICONS: Record<ActivityType, { icon: LucideIcon; tint: string }> = {
   },
   note_added: {
     icon: StickyNote,
+    tint: "bg-zinc-100 text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-400",
+  },
+  tagged: {
+    icon: TagIcon,
+    tint: "bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-400",
+  },
+  untagged: {
+    icon: TagsIcon,
     tint: "bg-zinc-100 text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-400",
   },
 };
@@ -151,6 +161,20 @@ function description(item: FeedItem): React.ReactNode {
       return (
         <>
           left a note on <CustomerRef item={item} />
+        </>
+      );
+    case "tagged":
+      return (
+        <>
+          tagged <TicketRef item={item} />
+          {item.meta?.tag ? ` as “${item.meta.tag}”` : ""}
+        </>
+      );
+    case "untagged":
+      return (
+        <>
+          removed {item.meta?.tag ? `“${item.meta.tag}” from ` : "a tag from "}
+          <TicketRef item={item} />
         </>
       );
     default:

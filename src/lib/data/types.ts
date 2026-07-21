@@ -22,6 +22,9 @@ export type TicketCategory =
 
 export type CustomerStatus = "active" | "inactive";
 
+/** Service level: scales a customer's ticket SLA targets (see SLA_TIERS). */
+export type CustomerTier = "standard" | "business" | "enterprise";
+
 export type TechnicianRole = "admin" | "technician";
 
 export type ActivityType =
@@ -35,7 +38,9 @@ export type ActivityType =
   | "customer_created"
   | "customer_updated"
   | "contact_added"
-  | "note_added";
+  | "note_added"
+  | "tagged"
+  | "untagged";
 
 export interface Customer {
   id: string;
@@ -45,6 +50,8 @@ export interface Customer {
   phone: string;
   location: string;
   status: CustomerStatus;
+  /** Service level that scales this customer's ticket SLA targets. */
+  slaTier: CustomerTier;
   /** Deterministic avatar tint key */
   accent: string;
   createdAt: string; // ISO
@@ -87,6 +94,14 @@ export interface Ticket {
   createdAt: string; // ISO
   updatedAt: string; // ISO
   resolvedAt: string | null; // ISO
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  /** Key into TAG_COLORS (single source of truth for chip styling). */
+  color: string;
+  createdAt: string; // ISO
 }
 
 export interface TicketComment {
@@ -226,6 +241,17 @@ export interface TicketWithRelations extends Ticket {
   customer: Customer;
   contact: Contact;
   assignee: Technician | null;
+  tags: Tag[];
+}
+
+/** A saved bundle of ticket-list filter/sort params, owned by a technician. */
+export interface SavedView {
+  id: string;
+  ownerId: string;
+  name: string;
+  /** URL query string, e.g. "status=open&priority=high&mine=true". */
+  params: string;
+  createdAt: string; // ISO
 }
 
 export interface CustomerWithStats extends Customer {
@@ -247,6 +273,8 @@ export interface TicketQuery {
   assigneeId?: string | "all" | "unassigned";
   /** When set (to a technician id), restricts to that assignee and overrides assigneeId. */
   mine?: string;
+  /** Restrict to tickets carrying this tag id. */
+  tagId?: string | "all";
   /** Restrict to open tickets past their SLA due date. */
   overdue?: boolean;
   sort?: TicketSort;

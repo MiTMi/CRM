@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EntityAvatar } from "@/components/entity-avatar";
-import { CustomerStatusBadge } from "@/components/tags";
+import { CustomerStatusBadge, SlaTierBadge } from "@/components/tags";
 import { TicketQueueItem } from "@/components/tickets/ticket-queue-item";
 import { EmptyState } from "@/components/empty-state";
 import { CustomerDialog } from "@/components/customers/customer-dialog";
@@ -39,6 +39,7 @@ import {
   getContactsForCustomer,
   getCustomerById,
   getNotesForCustomer,
+  getSlaPolicy,
   getTechnicians,
   getTicketsForCustomer,
 } from "@/lib/data/repository";
@@ -65,13 +66,15 @@ export default async function CustomerDetailPage({
   const customer = await getCustomerById(id);
   if (!customer) notFound();
 
-  const [contacts, tickets, notes, technicians, currentUser] = await Promise.all([
-    getContactsForCustomer(customer.id),
-    getTicketsForCustomer(customer.id),
-    getNotesForCustomer(customer.id),
-    getTechnicians(),
-    getCurrentUser(),
-  ]);
+  const [contacts, tickets, notes, technicians, currentUser, slaPolicy] =
+    await Promise.all([
+      getContactsForCustomer(customer.id),
+      getTicketsForCustomer(customer.id),
+      getNotesForCustomer(customer.id),
+      getTechnicians(),
+      getCurrentUser(),
+      getSlaPolicy(),
+    ]);
   const techById = new Map(technicians.map((t) => [t.id, t]));
   const openTickets = tickets.filter((t) =>
     ["open", "in_progress", "waiting_on_customer"].includes(t.status),
@@ -109,6 +112,7 @@ export default async function CustomerDetailPage({
                   {customer.name}
                 </h1>
                 <CustomerStatusBadge status={customer.status} />
+                <SlaTierBadge tier={customer.slaTier} />
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
@@ -147,6 +151,7 @@ export default async function CustomerDetailPage({
                   phone: customer.phone,
                   location: customer.location,
                   status: customer.status,
+                  slaTier: customer.slaTier,
                 }}
               />
             )}
@@ -215,7 +220,7 @@ export default async function CustomerDetailPage({
                 {openTickets.length > 0 ? (
                   <div className="divide-y">
                     {openTickets.slice(0, 4).map((t) => (
-                      <TicketQueueItem key={t.id} ticket={t} />
+                      <TicketQueueItem key={t.id} ticket={t} slaHours={slaPolicy} />
                     ))}
                   </div>
                 ) : (
@@ -304,7 +309,7 @@ export default async function CustomerDetailPage({
             {tickets.length > 0 ? (
               <div className="divide-y">
                 {tickets.map((t) => (
-                  <TicketQueueItem key={t.id} ticket={t} />
+                  <TicketQueueItem key={t.id} ticket={t} slaHours={slaPolicy} />
                 ))}
               </div>
             ) : (

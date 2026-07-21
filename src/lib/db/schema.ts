@@ -9,9 +9,14 @@ CREATE TABLE IF NOT EXISTS customers (
   phone       TEXT NOT NULL,
   location    TEXT NOT NULL,
   status      TEXT NOT NULL,
+  sla_tier    TEXT NOT NULL DEFAULT 'standard',
   accent      TEXT NOT NULL,
   created_at  TEXT NOT NULL
 );
+
+-- Backfill the column on clusters created before sla_tier existed (CREATE TABLE
+-- IF NOT EXISTS above is a no-op once the table exists, so new columns need this).
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS sla_tier TEXT NOT NULL DEFAULT 'standard';
 
 CREATE TABLE IF NOT EXISTS contacts (
   id          TEXT PRIMARY KEY,
@@ -126,9 +131,44 @@ CREATE TABLE IF NOT EXISTS knowledge_attachments (
   created_at  TEXT NOT NULL
 );
 
+-- Ticket labels/tags. A tag is a workspace-wide named color; tickets link to
+-- tags many-to-many via ticket_tags.
+CREATE TABLE IF NOT EXISTS tags (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL UNIQUE,
+  color      TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ticket_tags (
+  ticket_id TEXT NOT NULL REFERENCES tickets(id),
+  tag_id    TEXT NOT NULL REFERENCES tags(id),
+  PRIMARY KEY (ticket_id, tag_id)
+);
+
+-- Editable SLA policy: base resolution target (hours) per priority. One row per
+-- priority; admins change these from Settings. Tier multipliers stay in code.
+CREATE TABLE IF NOT EXISTS sla_policy (
+  priority TEXT PRIMARY KEY,
+  hours    INTEGER NOT NULL
+);
+
+-- A named bundle of ticket-list filter/sort params, saved per technician. The
+-- params column holds a URL query string (e.g. "status=open&mine=true").
+CREATE TABLE IF NOT EXISTS saved_views (
+  id         TEXT PRIMARY KEY,
+  owner_id   TEXT NOT NULL REFERENCES technicians(id),
+  name       TEXT NOT NULL,
+  params     TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_notes_customer ON notes(customer_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_ticket ON attachments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_kn_versions_note ON knowledge_note_versions(note_id);
 CREATE INDEX IF NOT EXISTS idx_kn_attachments_note ON knowledge_attachments(note_id);
 CREATE INDEX IF NOT EXISTS idx_activities_created ON activities(created_at);
+CREATE INDEX IF NOT EXISTS idx_ticket_tags_tag ON ticket_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_tags_ticket ON ticket_tags(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_saved_views_owner ON saved_views(owner_id);
 `;

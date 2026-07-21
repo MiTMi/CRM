@@ -31,16 +31,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EntityAvatar } from "@/components/entity-avatar";
-import { StatusBadge, PriorityTag, CategoryBadge } from "@/components/tags";
+import { StatusBadge, PriorityTag, CategoryBadge, TagChip } from "@/components/tags";
+import { SavedViews, type SavedViewItem } from "@/components/tickets/saved-views";
 import { EmptyState } from "@/components/empty-state";
 import {
   PRIORITY_ORDER,
   STATUS_STYLES,
+  tagColor,
   ticketNumber,
 } from "@/lib/data/constants";
 import { relativeTime } from "@/lib/format";
-import { computeSla, formatSlaRemaining } from "@/lib/data/sla";
+import { computeSla, formatSlaRemaining, type SlaPolicy } from "@/lib/data/sla";
 import type {
+  CustomerTier,
   StatusCounts,
   TicketCategory,
   TicketPriority,
@@ -50,6 +53,12 @@ import type {
 } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 
+export interface TagRef {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface TicketRow {
   id: string;
   number: number;
@@ -58,9 +67,11 @@ export interface TicketRow {
   priority: TicketPriority;
   category: TicketCategory;
   customerName: string;
+  customerTier: CustomerTier;
   assigneeId: string | null;
   assigneeName: string | null;
   assigneeAccent: string | null;
+  tags: TagRef[];
   createdAt: string;
   resolvedAt: string | null;
 }
@@ -70,6 +81,7 @@ export interface TicketFilters {
   status: string;
   priority: string;
   assignee: string;
+  tag: string;
   mine: boolean;
   overdue: boolean;
   sort: TicketSort;
@@ -94,6 +106,9 @@ export function TicketTable({
   statusCounts,
   filters,
   technicians,
+  tags,
+  savedViews,
+  slaHours,
 }: {
   rows: TicketRow[];
   total: number;
@@ -103,6 +118,9 @@ export function TicketTable({
   statusCounts: StatusCounts;
   filters: TicketFilters;
   technicians: { id: string; name: string }[];
+  tags: TagRef[];
+  savedViews: SavedViewItem[];
+  slaHours: SlaPolicy;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -260,6 +278,22 @@ export function TicketTable({
           <UserCheck className="size-4" />
           My Tickets
         </Button>
+        {tags.length > 0 && (
+          <Select value={filters.tag} onValueChange={(v) => setParams({ tag: v })}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All tags</SelectItem>
+              {tags.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  <span className={cn("size-1.5 rounded-full", tagColor(t.color).dot)} />
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Button
           variant={filters.overdue ? "destructive" : "outline"}
           className="w-full sm:w-auto"
@@ -268,6 +302,7 @@ export function TicketTable({
           <AlarmClock className="size-4" />
           Overdue
         </Button>
+        <SavedViews views={savedViews} />
       </div>
 
       {/* Table */}
@@ -307,11 +342,23 @@ export function TicketTable({
                     onClick={() => router.push(`/tickets/${t.id}`)}
                   >
                     <TableCell>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1">
                         <span className="font-medium">{t.title}</span>
                         <span className="font-mono text-xs text-muted-foreground">
                           {ticketNumber(t.number)}
                         </span>
+                        {t.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {t.tags.map((tag) => (
+                              <TagChip
+                                key={tag.id}
+                                tag={tag}
+                                withDot={false}
+                                className="px-1.5 py-0 text-[10px] leading-4"
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -351,6 +398,8 @@ export function TicketTable({
                           t.priority,
                           t.status,
                           t.resolvedAt,
+                          t.customerTier,
+                          slaHours,
                         );
                         const tone =
                           sla.state === "overdue" || sla.state === "breached"

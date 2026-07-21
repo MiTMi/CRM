@@ -4,7 +4,7 @@ import { AlarmClock, CalendarDays, ChevronLeft, ChevronRight } from "lucide-reac
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getTickets } from "@/lib/data/repository";
+import { getSlaPolicy, getTickets } from "@/lib/data/repository";
 import { computeSla } from "@/lib/data/sla";
 import { NOW } from "@/lib/data/clock";
 import { PRIORITY_STYLES, ticketNumber } from "@/lib/data/constants";
@@ -47,7 +47,7 @@ export default async function CalendarPage({
   };
   const { year, month0 } = parseMonth(str(sp.month), defaultMonth);
 
-  const tickets = await getTickets();
+  const [tickets, slaPolicy] = await Promise.all([getTickets(), getSlaPolicy()]);
 
   // Bucket tickets by their SLA due day (UTC).
   const byDay = new Map<string, DueTicket[]>();
@@ -59,6 +59,8 @@ export default async function CalendarPage({
       ticket.priority,
       ticket.status,
       ticket.resolvedAt,
+      ticket.customer.slaTier,
+      slaPolicy,
     );
     const key = utcDayKey(sla.dueAt);
     const resolved = ticket.status === "resolved" || ticket.status === "closed";

@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { createCustomer, updateCustomer } from "@/lib/actions/customers";
+import { SLA_TIERS, SLA_TIER_ORDER } from "@/lib/data/sla";
+import type { CustomerTier } from "@/lib/data/types";
+import { cn } from "@/lib/utils";
 
 export interface CustomerFormValues {
   id?: string;
@@ -34,6 +37,7 @@ export interface CustomerFormValues {
   phone: string;
   location: string;
   status: "active" | "inactive";
+  slaTier: CustomerTier;
 }
 
 export function CustomerDialog({
@@ -57,6 +61,9 @@ export function CustomerDialog({
   const [status, setStatus] = React.useState<"active" | "inactive">(
     customer?.status ?? "active",
   );
+  const [slaTier, setSlaTier] = React.useState<CustomerTier>(
+    customer?.slaTier ?? "standard",
+  );
   // create-only primary contact
   const [cFirst, setCFirst] = React.useState("");
   const [cLast, setCLast] = React.useState("");
@@ -69,6 +76,7 @@ export function CustomerDialog({
     setPhone(customer?.phone ?? "");
     setLocation(customer?.location ?? "");
     setStatus(customer?.status ?? "active");
+    setSlaTier(customer?.slaTier ?? "standard");
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -82,6 +90,7 @@ export function CustomerDialog({
           phone,
           location,
           status,
+          slaTier,
           contactFirstName: cFirst,
           contactLastName: cLast,
           contactEmail: cEmail,
@@ -103,6 +112,7 @@ export function CustomerDialog({
           phone,
           location,
           status,
+          slaTier,
         });
         if (res.ok) {
           setOpen(false);
@@ -202,20 +212,46 @@ export function CustomerDialog({
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Status</Label>
-              <Select
-                value={status}
-                onValueChange={(v) => setStatus(v as "active" | "inactive")}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label>Status</Label>
+                <Select
+                  value={status}
+                  onValueChange={(v) => setStatus(v as "active" | "inactive")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Service tier (SLA)</Label>
+                <Select
+                  value={slaTier}
+                  onValueChange={(v) => setSlaTier(v as CustomerTier)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SLA_TIER_ORDER.map((tier) => (
+                      <SelectItem key={tier} value={tier}>
+                        <span
+                          className={cn("size-1.5 rounded-full", SLA_TIERS[tier].dot)}
+                        />
+                        {SLA_TIERS[tier].label}
+                        <span className="text-xs text-muted-foreground">
+                          {SLA_TIERS[tier].blurb}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {mode === "create" && (

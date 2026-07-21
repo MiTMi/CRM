@@ -15,6 +15,8 @@ import {
   StickyNote,
   Flag,
   Paperclip,
+  Tag as TagIcon,
+  TagsIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -42,6 +44,8 @@ const ICONS: Record<ActivityType, { icon: LucideIcon; tint: string }> = {
   customer_updated: { icon: Pencil, tint: "text-indigo-600 dark:text-indigo-400" },
   contact_added: { icon: ContactIcon, tint: "text-sky-600 dark:text-sky-400" },
   note_added: { icon: StickyNote, tint: "text-zinc-600 dark:text-zinc-400" },
+  tagged: { icon: TagIcon, tint: "text-teal-600 dark:text-teal-400" },
+  untagged: { icon: TagsIcon, tint: "text-zinc-600 dark:text-zinc-400" },
 };
 
 function summarize(item: ActivityFeedItem): string {
@@ -68,6 +72,10 @@ function summarize(item: ActivityFeedItem): string {
       return `${item.actorName} added a contact to ${who}`;
     case "note_added":
       return `${item.actorName} left a note on ${who}`;
+    case "tagged":
+      return `${item.actorName} tagged ${ref}${item.meta?.tag ? ` as “${item.meta.tag}”` : ""}`;
+    case "untagged":
+      return `${item.actorName} removed ${item.meta?.tag ? `“${item.meta.tag}” from ` : "a tag from "}${ref}`;
     default:
       return `${item.actorName} created ${ref}`;
   }

@@ -49,6 +49,7 @@ const createCustomerSchema = z.object({
   phone: z.string().trim().default(""),
   location: z.string().trim().default(""),
   status: z.enum(["active", "inactive"]).default("active"),
+  slaTier: z.enum(["standard", "business", "enterprise"]).default("standard"),
   contactFirstName: z.string().trim().min(1, "Contact first name is required"),
   contactLastName: z.string().trim().default(""),
   contactEmail: z.string().trim().email("Enter a valid contact email"),
@@ -70,9 +71,9 @@ export async function createCustomer(
 
   const id = uid("cust");
   await execute(
-    `INSERT INTO customers (id,name,industry,website,phone,location,status,accent,created_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
-    [id, d.name, d.industry, d.website, d.phone, d.location, d.status, accentFor(d.name), now()],
+    `INSERT INTO customers (id,name,industry,website,phone,location,status,sla_tier,accent,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [id, d.name, d.industry, d.website, d.phone, d.location, d.status, d.slaTier, accentFor(d.name), now()],
   );
 
   await execute(
@@ -97,6 +98,7 @@ const updateCustomerSchema = z.object({
   phone: z.string().trim().default(""),
   location: z.string().trim().default(""),
   status: z.enum(["active", "inactive"]),
+  slaTier: z.enum(["standard", "business", "enterprise"]).default("standard"),
 });
 
 export async function updateCustomer(
@@ -114,9 +116,9 @@ export async function updateCustomer(
   const d = parsed.data;
 
   const changed = await execute(
-    `UPDATE customers SET name=?, industry=?, website=?, phone=?, location=?, status=?
+    `UPDATE customers SET name=?, industry=?, website=?, phone=?, location=?, status=?, sla_tier=?
      WHERE id=?`,
-    [d.name, d.industry, d.website, d.phone, d.location, d.status, customerId],
+    [d.name, d.industry, d.website, d.phone, d.location, d.status, d.slaTier, customerId],
   );
   if (changed === 0) return { ok: false, error: "Customer not found" };
 

@@ -7,7 +7,10 @@ import {
 } from "@/components/tickets/ticket-table";
 import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
 import {
+  getAllTags,
   getCustomers,
+  getSavedViews,
+  getSlaPolicy,
   getTechnicians,
   getTicketsPage,
 } from "@/lib/data/repository";
@@ -34,17 +37,22 @@ export default async function TicketsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const [currentUser, technicians, customers] = await Promise.all([
-    getCurrentUser(),
-    getTechnicians(),
-    getCustomers(),
-  ]);
+  const currentUser = await getCurrentUser();
+  const [technicians, customers, allTags, savedViews, slaPolicy] =
+    await Promise.all([
+      getTechnicians(),
+      getCustomers(),
+      getAllTags(),
+      currentUser ? getSavedViews(currentUser.id) : Promise.resolve([]),
+      getSlaPolicy(),
+    ]);
 
   const filters: TicketFilters = {
     q: str(sp.q) ?? "",
     status: str(sp.status) ?? "all",
     priority: str(sp.priority) ?? "all",
     assignee: str(sp.assignee) ?? "all",
+    tag: str(sp.tag) ?? "all",
     mine: str(sp.mine) === "true",
     overdue: str(sp.overdue) === "true",
     sort: (str(sp.sort) as TicketSort) ?? "created",
@@ -56,6 +64,7 @@ export default async function TicketsPage({
     status: filters.status as TicketStatus | "all",
     priority: filters.priority as TicketPriority | "all",
     assigneeId: filters.assignee,
+    tagId: filters.tag,
     mine: filters.mine ? currentUser?.id : undefined,
     overdue: filters.overdue,
     sort: filters.sort,
@@ -71,9 +80,11 @@ export default async function TicketsPage({
     priority: t.priority,
     category: t.category,
     customerName: t.customer.name,
+    customerTier: t.customer.slaTier,
     assigneeId: t.assigneeId,
     assigneeName: t.assignee?.name ?? null,
     assigneeAccent: t.assignee?.accent ?? null,
+    tags: t.tags.map((tag) => ({ id: tag.id, name: tag.name, color: tag.color })),
     createdAt: t.createdAt,
     resolvedAt: t.resolvedAt,
   }));
@@ -99,6 +110,13 @@ export default async function TicketsPage({
         statusCounts={result.statusCounts}
         filters={filters}
         technicians={technicians.map((t) => ({ id: t.id, name: t.name }))}
+        tags={allTags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
+        savedViews={savedViews.map((v) => ({
+          id: v.id,
+          name: v.name,
+          params: v.params,
+        }))}
+        slaHours={slaPolicy}
       />
     </div>
   );

@@ -18,19 +18,23 @@ import type {
   CustomerWithStats,
   DashboardStats,
   Note,
+  SavedView,
   StatusCounts,
   StatusSlice,
+  Tag,
   Technician,
   TechnicianWorkload,
   Ticket,
   TicketComment,
   TicketPage,
+  TicketPriority,
   TicketQuery,
   TicketWithRelations,
   VolumePoint,
   WorkspaceSearchResults,
 } from "./types";
 import { STATUS_ORDER } from "./constants";
+import { SLA_HOURS, SLA_TIERS, type SlaPolicy } from "./sla";
 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
@@ -48,6 +52,7 @@ function mapCustomer(r: any): Customer {
     phone: r.phone,
     location: r.location,
     status: r.status,
+    slaTier: r.sla_tier ?? "standard",
     accent: r.accent,
     createdAt: r.created_at,
   };
@@ -114,6 +119,15 @@ function mapActivity(r: any): Activity {
     ticketId: r.ticket_id ?? undefined,
     customerId: r.customer_id ?? undefined,
     meta: r.meta ? JSON.parse(r.meta) : undefined,
+    createdAt: r.created_at,
+  };
+}
+
+function mapTag(r: any): Tag {
+  return {
+    id: r.id,
+    name: r.name,
+    color: r.color,
     createdAt: r.created_at,
   };
 }
@@ -204,10 +218,11 @@ export async function getNotesForCustomer(customerId: string): Promise<Note[]> {
 // -- Joins -----------------------------------------------------------------
 
 async function makeJoiner(): Promise<(ticket: Ticket) => TicketWithRelations> {
-  const [custList, contactList, techList] = await Promise.all([
+  const [custList, contactList, techList, tagsByTicket] = await Promise.all([
     allCustomers(),
     allContacts(),
     allTechnicians(),
+    tagsByTicketMap(),
   ]);
   const customers = new Map(custList.map((c) => [c.id, c]));
   const contacts = new Map(contactList.map((c) => [c.id, c]));
@@ -225,7 +240,77 @@ async function makeJoiner(): Promise<(ticket: Ticket) => TicketWithRelations> {
       contacts.get(ticket.contactId) ??
       contactsByCustomer.get(ticket.customerId)?.[0]!,
     assignee: ticket.assigneeId ? techs.get(ticket.assigneeId) ?? null : null,
+    tags: tagsByTicket.get(ticket.id) ?? [],
   });
+}
+
+// -- Tags ------------------------------------------------------------------
+
+export async function getAllTags(): Promise<Tag[]> {
+  return (await query("SELECT * FROM tags ORDER BY name")).map(mapTag);
+}
+
+/** ticketId → its tags (name-sorted). Loaded once per joiner build. */
+async function tagsByTicketMap(): Promise<Map<string, Tag[]>> {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT tt.ticket_id AS ticket_id, tg.*
+     FROM ticket_tags tt JOIN tags tg ON tg.id = tt.tag_id
+     ORDER BY tg.name`,
+  );
+  const map = new Map<string, Tag[]>();
+  for (const r of rows) {
+    const ticketId = r.ticket_id as string;
+    const arr = map.get(ticketId) ?? [];
+    arr.push(mapTag(r));
+    map.set(ticketId, arr);
+  }
+  return map;
+}
+
+export async function getTagsForTicket(ticketId: string): Promise<Tag[]> {
+  return (
+    await query(
+      `SELECT tg.* FROM ticket_tags tt JOIN tags tg ON tg.id = tt.tag_id
+       WHERE tt.ticket_id = ? ORDER BY tg.name`,
+      [ticketId],
+    )
+  ).map(mapTag);
+}
+
+// -- Saved views -----------------------------------------------------------
+
+function mapSavedView(r: Record<string, unknown>): SavedView {
+  return {
+    id: r.id as string,
+    ownerId: r.owner_id as string,
+    name: r.name as string,
+    params: r.params as string,
+    createdAt: r.created_at as string,
+  };
+}
+
+export async function getSavedViews(ownerId: string): Promise<SavedView[]> {
+  return (
+    await query(
+      "SELECT * FROM saved_views WHERE owner_id = ? ORDER BY created_at ASC",
+      [ownerId],
+    )
+  ).map(mapSavedView);
+}
+
+// -- SLA policy ------------------------------------------------------------
+
+/** Admin-editable base SLA target hours per priority, merged over the code
+ *  defaults so a missing/empty table still yields a complete, valid policy. */
+export async function getSlaPolicy(): Promise<SlaPolicy> {
+  const rows = await query<{ priority: string; hours: number }>(
+    "SELECT priority, hours FROM sla_policy",
+  );
+  const policy: SlaPolicy = { ...SLA_HOURS };
+  for (const r of rows) {
+    if (r.priority in policy) policy[r.priority as TicketPriority] = r.hours;
+  }
+  return policy;
 }
 
 export async function getTickets(): Promise<TicketWithRelations[]> {
@@ -259,19 +344,33 @@ export async function getTicketsForCustomer(
 const PRIORITY_SORT_SQL =
   "CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END";
 
-// SLA due date in SQL: created_at (text) → timestamptz + hours-per-priority.
-const SLA_HOURS_SQL =
-  "CASE t.priority WHEN 'critical' THEN 4 WHEN 'high' THEN 24 WHEN 'medium' THEN 72 ELSE 120 END";
-const DUE_SQL = `(t.created_at::timestamptz + ((${SLA_HOURS_SQL})::text || ' hours')::interval)`;
-const OVERDUE_SQL = `(${DUE_SQL} < ?::timestamptz AND t.status IN ('open','in_progress','waiting_on_customer'))`;
+// Tier multiplier is generated from the TS config (tiers stay in code). Fetched
+// via a correlated subquery so the overdue predicate stays self-contained —
+// usable with just `FROM tickets t`, no customers join required.
+const TIER_MULT_SQL = `CASE (SELECT sla_tier FROM customers WHERE id = t.customer_id) ${Object.entries(
+  SLA_TIERS,
+)
+  .map(([tier, cfg]) => `WHEN '${tier}' THEN ${cfg.multiplier}`)
+  .join(" ")} ELSE 1 END`;
+
+/** SLA due-date SQL for the given (admin-editable) base-hours policy. The hours
+ *  are integers from the DB, so interpolating them is safe. */
+function overdueSql(policy: SlaPolicy): string {
+  const hoursSql = `CASE t.priority ${(Object.keys(SLA_HOURS) as TicketPriority[])
+    .map((p) => `WHEN '${p}' THEN ${Math.round(policy[p] ?? SLA_HOURS[p])}`)
+    .join(" ")} END`;
+  const dueSql = `(t.created_at::timestamptz + (((${hoursSql}) * (${TIER_MULT_SQL}))::text || ' hours')::interval)`;
+  return `(${dueSql} < ?::timestamptz AND t.status IN ('open','in_progress','waiting_on_customer'))`;
+}
 
 function nowIso(): string {
   return new Date(NOW).toISOString();
 }
 
 export async function getOverdueCount(): Promise<number> {
+  const policy = await getSlaPolicy();
   const r = await queryOne<{ n: number }>(
-    `SELECT COUNT(*)::int AS n FROM tickets t WHERE ${OVERDUE_SQL}`,
+    `SELECT COUNT(*)::int AS n FROM tickets t WHERE ${overdueSql(policy)}`,
     [nowIso()],
   );
   return r?.n ?? 0;
@@ -315,8 +414,14 @@ export async function getTicketsPage(q: TicketQuery): Promise<TicketPage> {
     baseWhere.push("t.assignee_id = ?");
     baseArgs.push(q.assigneeId);
   }
+  if (q.tagId && q.tagId !== "all") {
+    baseWhere.push(
+      "EXISTS (SELECT 1 FROM ticket_tags tt WHERE tt.ticket_id = t.id AND tt.tag_id = ?)",
+    );
+    baseArgs.push(q.tagId);
+  }
   if (q.overdue) {
-    baseWhere.push(OVERDUE_SQL);
+    baseWhere.push(overdueSql(await getSlaPolicy()));
     baseArgs.push(nowIso());
   }
 

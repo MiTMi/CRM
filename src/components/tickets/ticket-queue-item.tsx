@@ -4,16 +4,24 @@ import { EntityAvatar } from "@/components/entity-avatar";
 import { StatusBadge } from "@/components/tags";
 import { PRIORITY_STYLES, ticketNumber } from "@/lib/data/constants";
 import { relativeTime } from "@/lib/format";
-import { computeSla } from "@/lib/data/sla";
+import { computeSla, type SlaPolicy } from "@/lib/data/sla";
 import type { TicketWithRelations } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 
-export function TicketQueueItem({ ticket }: { ticket: TicketWithRelations }) {
+export function TicketQueueItem({
+  ticket,
+  slaHours,
+}: {
+  ticket: TicketWithRelations;
+  slaHours?: SlaPolicy;
+}) {
   const sla = computeSla(
     ticket.createdAt,
     ticket.priority,
     ticket.status,
     ticket.resolvedAt,
+    ticket.customer.slaTier,
+    slaHours,
   );
   return (
     <Link

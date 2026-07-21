@@ -10,13 +10,17 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { Badge } from "@/components/ui/badge";
+import { SlaPolicyForm } from "@/components/settings/sla-policy-form";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getSlaPolicy } from "@/lib/data/repository";
+import { SLA_TIERS, SLA_TIER_ORDER } from "@/lib/data/sla";
 
 export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const user = await getCurrentUser();
+  const [user, slaPolicy] = await Promise.all([getCurrentUser(), getSlaPolicy()]);
+  const isAdmin = user?.role === "admin";
 
   return (
     <div className="space-y-6">
@@ -56,6 +60,22 @@ export default async function SettingsPage() {
             <Field label="Timezone" value="UTC" />
             <Field label="Plan" value="Demo workspace" />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">SLA targets</CardTitle>
+          <CardDescription>
+            Base resolution time per priority. Service tiers scale these —{" "}
+            {SLA_TIER_ORDER.filter((t) => t !== "standard")
+              .map((t) => `${SLA_TIERS[t].label} ${SLA_TIERS[t].blurb.toLowerCase()}`)
+              .join(", ")}
+            .
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SlaPolicyForm policy={slaPolicy} canEdit={isAdmin} />
         </CardContent>
       </Card>
 

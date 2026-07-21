@@ -7,6 +7,7 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  Gauge,
   Mail,
   Tag,
   User,
@@ -24,15 +25,19 @@ import {
   StatusBadge,
   PriorityBadge,
   CategoryBadge,
+  SlaTierBadge,
 } from "@/components/tags";
 import { TicketControls } from "@/components/tickets/ticket-controls";
+import { TicketTagsEditor } from "@/components/tickets/ticket-tags-editor";
 import { CommentThread } from "@/components/tickets/comment-thread";
 import { AttachmentsSection } from "@/components/tickets/attachments-section";
 import { SlaBadge } from "@/components/tickets/sla-badge";
-import { computeSla } from "@/lib/data/sla";
+import { computeSla, SLA_TIERS } from "@/lib/data/sla";
 import {
+  getAllTags,
   getAttachmentsForTicket,
   getCommentsForTicket,
+  getSlaPolicy,
   getTechnicians,
   getTicketById,
 } from "@/lib/data/repository";
@@ -61,18 +66,23 @@ export default async function TicketDetailPage({
   const ticket = await getTicketById(id);
   if (!ticket) notFound();
 
-  const [comments, attachments, technicians, currentUser] = await Promise.all([
-    getCommentsForTicket(ticket.id),
-    getAttachmentsForTicket(ticket.id),
-    getTechnicians(),
-    getCurrentUser(),
-  ]);
+  const [comments, attachments, technicians, currentUser, allTags, slaPolicy] =
+    await Promise.all([
+      getCommentsForTicket(ticket.id),
+      getAttachmentsForTicket(ticket.id),
+      getTechnicians(),
+      getCurrentUser(),
+      getAllTags(),
+      getSlaPolicy(),
+    ]);
   const techById = new Map(technicians.map((t) => [t.id, t]));
   const sla = computeSla(
     ticket.createdAt,
     ticket.priority,
     ticket.status,
     ticket.resolvedAt,
+    ticket.customer.slaTier,
+    slaPolicy,
   );
 
   return (
@@ -167,6 +177,20 @@ export default async function TicketDetailPage({
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Tags</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TicketTagsEditor
+                ticketId={ticket.id}
+                tags={ticket.tags}
+                allTags={allTags}
+                canManage={currentUser?.role === "admin"}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
@@ -219,6 +243,15 @@ export default async function TicketDetailPage({
                       ? "Target"
                       : "Due"}{" "}
                     {formatDateTime(sla.dueAt)}
+                  </span>
+                </div>
+              </MetaRow>
+
+              <MetaRow icon={Gauge} label="Service tier">
+                <div className="flex flex-col items-end gap-1">
+                  <SlaTierBadge tier={ticket.customer.slaTier} />
+                  <span className="text-xs text-muted-foreground">
+                    {SLA_TIERS[ticket.customer.slaTier].blurb}
                   </span>
                 </div>
               </MetaRow>

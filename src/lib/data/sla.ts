@@ -5,17 +5,67 @@
 // ---------------------------------------------------------------------------
 
 import { NOW } from "./clock";
-import type { TicketPriority, TicketStatus } from "./types";
+import type { CustomerTier, TicketPriority, TicketStatus } from "./types";
 
 const HOUR = 3600_000;
 
-/** Target resolution time (hours) per priority. */
+/** Base target resolution time (hours) per priority — for a standard customer. */
 export const SLA_HOURS: Record<TicketPriority, number> = {
   critical: 4,
   high: 24,
   medium: 72,
   low: 120,
 };
+
+/**
+ * Service tiers scale the base SLA targets: a lower multiplier means a tighter
+ * deadline. `multiplier` is the single source of truth — the SQL due-date math
+ * in repository.ts is generated from these values, so change them here only.
+ */
+export const SLA_TIERS: Record<
+  CustomerTier,
+  { label: string; multiplier: number; blurb: string; badge: string; dot: string }
+> = {
+  standard: {
+    label: "Standard",
+    multiplier: 1,
+    blurb: "Base response targets",
+    badge:
+      "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-500/15 dark:text-zinc-400 dark:border-zinc-500/25",
+    dot: "bg-zinc-400",
+  },
+  business: {
+    label: "Business",
+    multiplier: 0.75,
+    blurb: "25% faster targets",
+    badge:
+      "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/25",
+    dot: "bg-sky-500",
+  },
+  enterprise: {
+    label: "Enterprise",
+    multiplier: 0.5,
+    blurb: "2× faster targets",
+    badge:
+      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/25",
+    dot: "bg-amber-500",
+  },
+};
+
+export const SLA_TIER_ORDER: CustomerTier[] = ["standard", "business", "enterprise"];
+
+/** Base target hours per priority. Defaults to SLA_HOURS but can be overridden
+ *  with the admin-edited policy loaded from the database. */
+export type SlaPolicy = Record<TicketPriority, number>;
+
+/** Effective SLA target (hours) for a priority at a given service tier. */
+export function slaTargetHours(
+  priority: TicketPriority,
+  tier: CustomerTier = "standard",
+  base: SlaPolicy = SLA_HOURS,
+): number {
+  return (base[priority] ?? SLA_HOURS[priority]) * (SLA_TIERS[tier]?.multiplier ?? 1);
+}
 
 const OPEN_STATES = new Set<TicketStatus>([
   "open",
@@ -45,9 +95,12 @@ export function computeSla(
   priority: TicketPriority,
   status: TicketStatus,
   resolvedAt: string | null,
+  tier: CustomerTier = "standard",
+  base: SlaPolicy = SLA_HOURS,
   now: number = NOW,
 ): Sla {
-  const due = Date.parse(createdAt) + SLA_HOURS[priority] * HOUR;
+  const targetHours = slaTargetHours(priority, tier, base);
+  const due = Date.parse(createdAt) + targetHours * HOUR;
   const dueAt = new Date(due).toISOString();
 
   if (!OPEN_STATES.has(status)) {
@@ -61,7 +114,7 @@ export function computeSla(
   }
 
   const remainingMs = due - now;
-  const window = SLA_HOURS[priority] * HOUR;
+  const window = targetHours * HOUR;
   let state: SlaState;
   if (remainingMs < 0) state = "overdue";
   else if (remainingMs < window * 0.25) state = "due_soon";

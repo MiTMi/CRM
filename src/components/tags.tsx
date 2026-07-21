@@ -4,14 +4,52 @@ import {
   CUSTOMER_STATUS_STYLES,
   PRIORITY_STYLES,
   STATUS_STYLES,
+  tagColor,
 } from "@/lib/data/constants";
+import { SLA_TIERS } from "@/lib/data/sla";
 import type {
   CustomerStatus,
+  CustomerTier,
+  Tag,
   TicketCategory,
   TicketPriority,
   TicketStatus,
 } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
+
+export function SlaTierBadge({
+  tier,
+  className,
+}: {
+  tier: CustomerTier;
+  className?: string;
+}) {
+  const t = SLA_TIERS[tier];
+  return (
+    <Badge className={cn("gap-1.5 border font-medium", t.badge, className)}>
+      <span className={cn("size-1.5 rounded-full", t.dot)} />
+      {t.label}
+    </Badge>
+  );
+}
+
+export function TagChip({
+  tag,
+  className,
+  withDot = true,
+}: {
+  tag: Pick<Tag, "name" | "color">;
+  className?: string;
+  withDot?: boolean;
+}) {
+  const c = tagColor(tag.color);
+  return (
+    <Badge className={cn("gap-1.5 border font-medium", c.badge, className)}>
+      {withDot && <span className={cn("size-1.5 rounded-full", c.dot)} />}
+      {tag.name}
+    </Badge>
+  );
+}
 
 export function StatusBadge({
   status,

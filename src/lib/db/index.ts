@@ -1,6 +1,7 @@
 import "server-only";
 import { join } from "node:path";
 import { SCHEMA } from "./schema";
+import { SLA_HOURS } from "@/lib/data/sla";
 import { hashPassword } from "@/lib/auth/password";
 import {
   activities,
@@ -8,7 +9,10 @@ import {
   contacts,
   customers,
   notes,
+  savedViews,
+  tags,
   technicians,
+  ticketTags,
   tickets,
 } from "@/lib/data/mock";
 
@@ -72,9 +76,9 @@ async function seedIfEmpty(client: DbClient) {
   try {
     for (const c of customers)
       await run(
-        `INSERT INTO customers (id,name,industry,website,phone,location,status,accent,created_at)
-         VALUES (?,?,?,?,?,?,?,?,?)`,
-        [c.id, c.name, c.industry, c.website, c.phone, c.location, c.status, c.accent, c.createdAt],
+        `INSERT INTO customers (id,name,industry,website,phone,location,status,sla_tier,accent,created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        [c.id, c.name, c.industry, c.website, c.phone, c.location, c.status, c.slaTier, c.accent, c.createdAt],
       );
 
     for (const c of contacts)
@@ -115,6 +119,30 @@ async function seedIfEmpty(client: DbClient) {
         `INSERT INTO notes (id,customer_id,author_id,body,created_at) VALUES (?,?,?,?,?)`,
         [n.id, n.customerId, n.authorId, n.body, n.createdAt],
       );
+
+    for (const t of tags)
+      await run(
+        `INSERT INTO tags (id,name,color,created_at) VALUES (?,?,?,?)`,
+        [t.id, t.name, t.color, t.createdAt],
+      );
+
+    for (const tt of ticketTags)
+      await run(
+        `INSERT INTO ticket_tags (ticket_id,tag_id) VALUES (?,?)`,
+        [tt.ticketId, tt.tagId],
+      );
+
+    for (const v of savedViews)
+      await run(
+        `INSERT INTO saved_views (id,owner_id,name,params,created_at) VALUES (?,?,?,?,?)`,
+        [v.id, v.ownerId, v.name, v.params, v.createdAt],
+      );
+
+    for (const [priority, hours] of Object.entries(SLA_HOURS))
+      await run(`INSERT INTO sla_policy (priority,hours) VALUES (?,?)`, [
+        priority,
+        hours,
+      ]);
 
     await client.query("COMMIT");
   } catch (err) {

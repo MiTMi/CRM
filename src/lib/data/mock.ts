@@ -9,6 +9,7 @@ import type {
   Contact,
   Customer,
   Note,
+  Tag,
   Technician,
   Ticket,
   TicketComment,
@@ -97,7 +98,7 @@ export const technicians: Technician[] = [
 // -- Customers -------------------------------------------------------------
 
 const customerSeed: Array<
-  Omit<Customer, "id" | "createdAt"> & { daysAgo: number }
+  Omit<Customer, "id" | "createdAt" | "slaTier"> & { daysAgo: number }
 > = [
   { name: "Acme Corporation", industry: "Manufacturing", website: "acme.com", phone: "+1 (415) 555-0142", location: "San Francisco, CA", status: "active", accent: "indigo", daysAgo: 320 },
   { name: "Northwind Traders", industry: "Retail", website: "northwind.co", phone: "+1 (212) 555-0178", location: "New York, NY", status: "active", accent: "sky", daysAgo: 280 },
@@ -113,9 +114,19 @@ const customerSeed: Array<
   { name: "Cyberdyne Labs", industry: "Robotics", website: "cyberdyne.ai", phone: "+1 (512) 555-0170", location: "Austin, TX", status: "active", accent: "violet", daysAgo: 40 },
 ];
 
+// Service tier per customer — a deterministic mix so the demo shows the spread
+// (every 4th is enterprise, every 3rd business, the rest standard).
+const slaTierFor = (i: number): Customer["slaTier"] =>
+  i % 4 === 0 ? "enterprise" : i % 3 === 0 ? "business" : "standard";
+
 export const customers: Customer[] = customerSeed.map((c, i) => {
   const { daysAgo, ...rest } = c;
-  return { ...rest, id: `cust-${i + 1}`, createdAt: iso(daysAgo * DAY) };
+  return {
+    ...rest,
+    id: `cust-${i + 1}`,
+    slaTier: slaTierFor(i),
+    createdAt: iso(daysAgo * DAY),
+  };
 });
 
 // -- Contacts --------------------------------------------------------------
@@ -349,3 +360,53 @@ export const notes: Note[] = customers.map((customer, i) => ({
   body: noteTemplates[i % noteTemplates.length],
   createdAt: iso((10 + i) * DAY),
 }));
+
+// -- Tags ------------------------------------------------------------------
+// A small workspace tag vocabulary, deterministically applied to seeded
+// tickets from their category/priority/status so the labels look coherent.
+
+export const tags: Tag[] = [
+  { id: "tag-vip", name: "VIP", color: "rose", createdAt: iso(60 * DAY) },
+  { id: "tag-regression", name: "Regression", color: "red", createdAt: iso(60 * DAY) },
+  { id: "tag-needs-info", name: "Needs info", color: "amber", createdAt: iso(60 * DAY) },
+  { id: "tag-rma", name: "Hardware RMA", color: "orange", createdAt: iso(60 * DAY) },
+  { id: "tag-follow-up", name: "Follow-up", color: "sky", createdAt: iso(60 * DAY) },
+  { id: "tag-quick-win", name: "Quick win", color: "emerald", createdAt: iso(60 * DAY) },
+  { id: "tag-escalated", name: "Escalated", color: "violet", createdAt: iso(60 * DAY) },
+];
+
+export const ticketTags: { ticketId: string; tagId: string }[] = [];
+tickets.forEach((t, i) => {
+  const applied = new Set<string>();
+  const add = (tagId: string) => applied.add(tagId);
+
+  if (t.category === "hardware") add("tag-rma");
+  if (t.priority === "critical" || t.priority === "high") add("tag-escalated");
+  if (t.status === "waiting_on_customer") add("tag-needs-info");
+  if (t.priority === "low") add("tag-quick-win");
+  if (i % 6 === 0) add("tag-vip");
+  if (i % 5 === 0) add("tag-follow-up");
+  if (i % 7 === 0) add("tag-regression");
+
+  for (const tagId of applied)
+    ticketTags.push({ ticketId: t.id, tagId });
+});
+
+// -- Saved views (one demo view for the admin) -----------------------------
+
+export const savedViews = [
+  {
+    id: "view-seed-1",
+    ownerId: "tech-1",
+    name: "Critical & overdue",
+    params: "priority=critical&overdue=true",
+    createdAt: iso(30 * DAY),
+  },
+  {
+    id: "view-seed-2",
+    ownerId: "tech-1",
+    name: "Escalated queue",
+    params: "tag=tag-escalated&sort=priority&dir=asc",
+    createdAt: iso(20 * DAY),
+  },
+];

@@ -142,6 +142,72 @@ export const PRIORITY_ORDER: TicketPriority[] = [
   "low",
 ];
 
+/** Tag chip palette, keyed by a tag's `color` field. Soft tinted badges with a
+ *  matching dot — the single source of truth for tag styling (light + dark). */
+export const TAG_COLORS: Record<string, { label: string; badge: string; dot: string }> = {
+  slate: {
+    label: "Slate",
+    badge: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-500/25",
+    dot: "bg-slate-500",
+  },
+  red: {
+    label: "Red",
+    badge: "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/25",
+    dot: "bg-red-500",
+  },
+  orange: {
+    label: "Orange",
+    badge: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/25",
+    dot: "bg-orange-500",
+  },
+  amber: {
+    label: "Amber",
+    badge: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/25",
+    dot: "bg-amber-500",
+  },
+  emerald: {
+    label: "Emerald",
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/25",
+    dot: "bg-emerald-500",
+  },
+  teal: {
+    label: "Teal",
+    badge: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-500/25",
+    dot: "bg-teal-500",
+  },
+  sky: {
+    label: "Sky",
+    badge: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/25",
+    dot: "bg-sky-500",
+  },
+  indigo: {
+    label: "Indigo",
+    badge: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/25",
+    dot: "bg-indigo-500",
+  },
+  violet: {
+    label: "Violet",
+    badge: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/25",
+    dot: "bg-violet-500",
+  },
+  fuchsia: {
+    label: "Fuchsia",
+    badge: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:border-fuchsia-500/25",
+    dot: "bg-fuchsia-500",
+  },
+  rose: {
+    label: "Rose",
+    badge: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/25",
+    dot: "bg-rose-500",
+  },
+};
+
+export const TAG_COLOR_ORDER = Object.keys(TAG_COLORS);
+
+export function tagColor(color: string) {
+  return TAG_COLORS[color] ?? TAG_COLORS.slate;
+}
+
 /** Deterministic avatar tint palette, keyed by the `accent` field. */
 export const AVATAR_TINTS: Record<string, string> = {
   indigo: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300",
